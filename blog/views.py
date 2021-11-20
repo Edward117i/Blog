@@ -9,6 +9,9 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.views.generic import ListView
 from .forms import EmailPostForm
 from django.core.mail import message, send_mail
+from .models import Post, Comment
+from .forms import EmailPostForm, CommentForm
+
 
 # Create your views here.
 
@@ -59,3 +62,26 @@ def post_share(request, post_id):
         else:
             form = EmailField()
         return render(request, 'blog/post/share.html', {'post': post, 'form': form, 'sent':sent})
+
+def post_detail(request, year, month, day, post):
+    post = get_object_or_404(Post, slug=post, status='published', publish_year=year, publish_month=month, publish__day=day)
+
+    #Lista de articulos activos para este articulo
+    Comments = post.comments.filter(active=True)
+
+    new_comments = None
+    
+    if request.method == 'POST':
+        #Un comentario ha sido enviado
+        comment_form = CommentForm(data=request.POST)
+        if comment_form.is_valid():
+            #Crear un objeto Comment pero no se persiste en base de datos todavía
+            new_comment = comment_form.save(commit=False)
+            #Asociar el comentario al artículo
+            new_comment.post = post
+            #Guardar los datos en base de datos
+            new_comment.save()
+        else:
+            comment_form = CommentForm()
+
+        return render(request, 'blog/post/detail.html', {'comments': new_comment, 'comment_form': comment_form})
